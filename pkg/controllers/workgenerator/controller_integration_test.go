@@ -163,7 +163,7 @@ var _ = Describe("Test Work Generator Controller", func() {
 		})
 
 		It("Should not create work when no resources are selected", func() {
-			// create master resource snapshot with 2 number of resources
+			// create master resource snapshot with 0 resources
 			masterSnapshot := generateResourceSnapshot(1, 1, 0, [][]byte{})
 			Expect(k8sClient.Create(ctx, masterSnapshot)).Should(Succeed())
 			// create a scheduled binding
@@ -182,7 +182,7 @@ var _ = Describe("Test Work Generator Controller", func() {
 			// binding should not have any finalizers
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: binding.Name}, binding)).Should(Succeed())
 			Expect(len(binding.Finalizers)).Should(Equal(0))
-			// flip the binding state to bound and check the work is created
+			// flip the binding state to bound
 			binding.Spec.State = placementv1beta1.BindingStateBound
 			Expect(k8sClient.Update(ctx, binding)).Should(Succeed())
 			updateRolloutStartedGeneration(&binding)
