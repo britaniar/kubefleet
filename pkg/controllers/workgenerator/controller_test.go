@@ -528,6 +528,7 @@ func TestUpsertWork(t *testing.T) {
 func TestSetAllWorkAppliedCondition(t *testing.T) {
 	tests := map[string]struct {
 		works                            map[string]*fleetv1beta1.Work
+		workDeleted                      bool
 		generation                       int64
 		wantAppliedCond                  metav1.Condition
 		wantWorkAppliedCondSummaryStatus workConditionSummarizedStatus
@@ -565,7 +566,8 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			generation: 1,
+			workDeleted: false,
+			generation:  1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionTrue,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -607,7 +609,8 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			generation: 1,
+			workDeleted: false,
+			generation:  1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionFalse,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -649,7 +652,8 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			generation: 1,
+			workDeleted: false,
+			generation:  1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionFalse,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -685,7 +689,8 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			generation: 1,
+			workDeleted: false,
+			generation:  1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionFalse,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -693,6 +698,30 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 				ObservedGeneration: 1,
 			},
 			wantWorkAppliedCondSummaryStatus: workConditionSummarizedStatusIncomplete,
+		},
+		"one work was deleted": {
+			works: map[string]*fleetv1beta1.Work{
+				// appliedWork1 was deleted
+
+				"notAppliedWork2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "work2",
+						Generation: 123,
+					},
+					Status: fleetv1beta1.WorkStatus{
+						Conditions: []metav1.Condition{},
+					},
+				},
+			},
+			workDeleted: true,
+			generation:  1,
+			wantAppliedCond: metav1.Condition{
+				Status:             metav1.ConditionFalse,
+				Type:               string(fleetv1beta1.ResourceBindingApplied),
+				Reason:             condition.WorkNotAppliedReason,
+				ObservedGeneration: 1,
+			},
+			wantWorkAppliedCondSummaryStatus: workConditionSummarizedStatusFalse,
 		},
 	}
 	for name, tt := range tests {
@@ -703,7 +732,7 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					Generation: tt.generation,
 				},
 			}
-			workAppliedCondSummaryStatus := setAllWorkAppliedCondition(tt.works, binding)
+			workAppliedCondSummaryStatus := setAllWorkAppliedCondition(tt.workDeleted, tt.works, binding)
 			if workAppliedCondSummaryStatus != tt.wantWorkAppliedCondSummaryStatus {
 				t.Errorf("setAllWorkAppliedCondition() = %v, want %v", workAppliedCondSummaryStatus, tt.wantWorkAppliedCondSummaryStatus)
 			}
@@ -2372,7 +2401,7 @@ func TestSetBindingStatus(t *testing.T) {
 					ApplyStrategy: tt.applyStrategy,
 				},
 			}
-			setBindingStatus(tt.works, binding)
+			setBindingStatus(false, tt.works, binding)
 			got := binding.Status.FailedPlacements
 			// setBindingStatus is using map to populate the placements.
 			// There is no default order in traversing the map.

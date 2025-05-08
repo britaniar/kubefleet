@@ -596,7 +596,7 @@ var _ = Describe("Test Work Generator Controller", func() {
 			})
 		})
 
-		Context("Test Bound ClusterResourceBinding with a single resource snapshot with envelop objects", func() {
+		Context("Test Bound ClusterResourceBinding with a single resource snapshot with envelop objects", Serial, func() {
 			var masterSnapshot *placementv1beta1.ClusterResourceSnapshot
 
 			BeforeEach(func() {
@@ -1210,6 +1210,7 @@ var _ = Describe("Test Work Generator Controller", func() {
 					return errors.IsNotFound(err)
 				}, duration, interval).Should(BeTrue(), "controller should remove work in hub cluster that is no longer needed")
 				By(fmt.Sprintf("second work %s is deleted in %s", work.Name, work.Namespace))
+				verifyBindingStatusSyncedNotApplied(binding, false, false)
 			})
 
 			It("Should remove binding after all work associated with deleted bind are deleted", func() {
