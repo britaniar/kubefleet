@@ -596,7 +596,7 @@ var _ = Describe("Test Work Generator Controller", func() {
 			})
 		})
 
-		Context("Test Bound ClusterResourceBinding with a single resource snapshot with envelop objects", Serial, func() {
+		Context("Test Bound ClusterResourceBinding with a single resource snapshot with envelop objects", func() {
 			var masterSnapshot *placementv1beta1.ClusterResourceSnapshot
 
 			BeforeEach(func() {

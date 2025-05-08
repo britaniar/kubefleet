@@ -223,7 +223,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req controllerruntime.Reques
 		switch {
 		case workDeleted:
 			// Some Work object(s) are being deleted; set a False Applied condition which signals
-			// that resources are in the process of being applied.
+			// that resources are in the process of being deleted.
 			klog.V(2).InfoS("Some work being deleted", "resourceBinding", bindingRef)
 			setBindingStatus(workDeleted, works, &resourceBinding)
 			syncErr = controller.NewUserError(fmt.Errorf("some work objects are being deleted"))
@@ -553,7 +553,6 @@ func (r *Reconciler) syncAllWork(ctx context.Context, resourceBinding *fleetv1be
 	}
 
 	//  delete the works that are not associated with any resource snapshot
-	deletedWork := make([]*fleetv1beta1.Work, len(existingWorks))
 	for i := range existingWorks {
 		work := existingWorks[i]
 		if _, exist := activeWork[work.Name]; exist {
@@ -566,9 +565,7 @@ func (r *Reconciler) syncAllWork(ctx context.Context, resourceBinding *fleetv1be
 					return controller.NewAPIServerError(false, err)
 				}
 			}
-			deletedWork = append(deletedWork, work)
 			klog.V(2).InfoS("Deleted the work that is not associated with any resource snapshot", "work", klog.KObj(work))
-			//updateAny.Store(true)
 			deletedAny.Store(true)
 			return nil
 		})

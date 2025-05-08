@@ -1296,6 +1296,7 @@ func TestSetBindingStatus(t *testing.T) {
 	tests := map[string]struct {
 		works                            map[string]*fleetv1beta1.Work
 		applyStrategy                    *fleetv1beta1.ApplyStrategy
+		workDeleted                      bool
 		maxFailedResourcePlacementLimit  *int
 		wantFailedResourcePlacements     []fleetv1beta1.FailedResourcePlacement
 		maxDriftedResourcePlacementLimit *int
@@ -1522,6 +1523,7 @@ func TestSetBindingStatus(t *testing.T) {
 				},
 			},
 		},
+
 		"One work has one not available and one work has one not applied (exceed the maxFailedResourcePlacementLimit)": {
 			works: map[string]*fleetv1beta1.Work{
 				"work1": {
@@ -2366,6 +2368,148 @@ func TestSetBindingStatus(t *testing.T) {
 				},
 			},
 		},
+		"Some work has been applied and some has been deleted": {
+			works: map[string]*fleetv1beta1.Work{
+				"work1": {
+					Status: fleetv1beta1.WorkStatus{
+						ManifestConditions: []fleetv1beta1.ManifestCondition{
+							{
+								Identifier: fleetv1beta1.WorkResourceIdentifier{
+									Ordinal:   0,
+									Group:     "",
+									Version:   "v1",
+									Kind:      "ConfigMap",
+									Name:      "config-name",
+									Namespace: "config-namespace",
+								},
+								Conditions: []metav1.Condition{
+									{
+										Type:   fleetv1beta1.WorkConditionTypeApplied,
+										Status: metav1.ConditionTrue,
+									},
+									{
+										Type:   fleetv1beta1.WorkConditionTypeAvailable,
+										Status: metav1.ConditionFalse,
+									},
+								},
+							},
+							{
+								Identifier: fleetv1beta1.WorkResourceIdentifier{
+									Ordinal:   1,
+									Group:     "",
+									Version:   "v1",
+									Kind:      "Service",
+									Name:      "svc-name",
+									Namespace: "svc-namespace",
+								},
+								Conditions: []metav1.Condition{
+									{
+										Type:   fleetv1beta1.WorkConditionTypeApplied,
+										Status: metav1.ConditionTrue,
+									},
+									{
+										Type:   fleetv1beta1.WorkConditionTypeAvailable,
+										Status: metav1.ConditionTrue,
+									},
+								},
+							},
+						},
+						Conditions: []metav1.Condition{
+							{
+								Type:   fleetv1beta1.WorkConditionTypeApplied,
+								Status: metav1.ConditionTrue,
+							},
+							{
+								Type:   fleetv1beta1.WorkConditionTypeAvailable,
+								Status: metav1.ConditionFalse,
+							},
+						},
+					},
+				},
+				"work2": {
+					Status: fleetv1beta1.WorkStatus{
+						ManifestConditions: []fleetv1beta1.ManifestCondition{
+							{
+								Identifier: fleetv1beta1.WorkResourceIdentifier{
+									Ordinal:   0,
+									Group:     "",
+									Version:   "v1",
+									Kind:      "ConfigMap",
+									Name:      "config-name-1",
+									Namespace: "config-namespace",
+								},
+								Conditions: []metav1.Condition{
+									{
+										Type:   fleetv1beta1.WorkConditionTypeApplied,
+										Status: metav1.ConditionTrue,
+									},
+									{
+										Type:   fleetv1beta1.WorkConditionTypeAvailable,
+										Status: metav1.ConditionTrue,
+									},
+								},
+							},
+							{
+								Identifier: fleetv1beta1.WorkResourceIdentifier{
+									Ordinal:   1,
+									Group:     "",
+									Version:   "v1",
+									Kind:      "Service",
+									Name:      "svc-name-1",
+									Namespace: "svc-namespace",
+								},
+								Conditions: []metav1.Condition{
+									{
+										Type:   fleetv1beta1.WorkConditionTypeApplied,
+										Status: metav1.ConditionFalse,
+									},
+								},
+							},
+						},
+						Conditions: []metav1.Condition{
+							{
+								Type:   fleetv1beta1.WorkConditionTypeApplied,
+								Status: metav1.ConditionFalse,
+							},
+							{
+								Type:   fleetv1beta1.WorkConditionTypeAvailable,
+								Status: metav1.ConditionFalse,
+							},
+						},
+					},
+				},
+				// "work3" was deleted
+			},
+			workDeleted: true,
+			wantFailedResourcePlacements: []fleetv1beta1.FailedResourcePlacement{
+				{
+					ResourceIdentifier: fleetv1beta1.ResourceIdentifier{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Name:      "config-name",
+						Namespace: "config-namespace",
+					},
+					Condition: metav1.Condition{
+						Type:   fleetv1beta1.WorkConditionTypeAvailable,
+						Status: metav1.ConditionFalse,
+					},
+				},
+				{
+					ResourceIdentifier: fleetv1beta1.ResourceIdentifier{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "Service",
+						Name:      "svc-name-1",
+						Namespace: "svc-namespace",
+					},
+					Condition: metav1.Condition{
+						Type:   fleetv1beta1.WorkConditionTypeApplied,
+						Status: metav1.ConditionFalse,
+					},
+				},
+			},
+		},
 	}
 
 	originalMaxFailedResourcePlacementLimit := maxFailedResourcePlacementLimit
@@ -2401,7 +2545,7 @@ func TestSetBindingStatus(t *testing.T) {
 					ApplyStrategy: tt.applyStrategy,
 				},
 			}
-			setBindingStatus(false, tt.works, binding)
+			setBindingStatus(tt.workDeleted, tt.works, binding)
 			got := binding.Status.FailedPlacements
 			// setBindingStatus is using map to populate the placements.
 			// There is no default order in traversing the map.
