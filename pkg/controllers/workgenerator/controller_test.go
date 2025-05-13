@@ -528,7 +528,7 @@ func TestUpsertWork(t *testing.T) {
 func TestSetAllWorkAppliedCondition(t *testing.T) {
 	tests := map[string]struct {
 		works                            map[string]*fleetv1beta1.Work
-		workDeleted                      bool
+		workDeleted                      map[string]*fleetv1beta1.Work
 		generation                       int64
 		wantAppliedCond                  metav1.Condition
 		wantWorkAppliedCondSummaryStatus workConditionSummarizedStatus
@@ -566,8 +566,7 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			workDeleted: false,
-			generation:  1,
+			generation: 1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionTrue,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -609,8 +608,7 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			workDeleted: false,
-			generation:  1,
+			generation: 1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionFalse,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -652,8 +650,7 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			workDeleted: false,
-			generation:  1,
+			generation: 1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionFalse,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -689,8 +686,7 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			workDeleted: false,
-			generation:  1,
+			generation: 1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionFalse,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -713,8 +709,24 @@ func TestSetAllWorkAppliedCondition(t *testing.T) {
 					},
 				},
 			},
-			workDeleted: true,
-			generation:  1,
+			workDeleted: map[string]*fleetv1beta1.Work{
+				"appliedWork1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "work1",
+						Generation: 123,
+					},
+					Status: fleetv1beta1.WorkStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:               fleetv1beta1.WorkConditionTypeApplied,
+								Status:             metav1.ConditionTrue,
+								ObservedGeneration: 123,
+							},
+						},
+					},
+				},
+			},
+			generation: 1,
 			wantAppliedCond: metav1.Condition{
 				Status:             metav1.ConditionFalse,
 				Type:               string(fleetv1beta1.ResourceBindingApplied),
@@ -1296,7 +1308,7 @@ func TestSetBindingStatus(t *testing.T) {
 	tests := map[string]struct {
 		works                            map[string]*fleetv1beta1.Work
 		applyStrategy                    *fleetv1beta1.ApplyStrategy
-		workDeleted                      bool
+		workDeleted                      map[string]*fleetv1beta1.Work
 		maxFailedResourcePlacementLimit  *int
 		wantFailedResourcePlacements     []fleetv1beta1.FailedResourcePlacement
 		maxDriftedResourcePlacementLimit *int
@@ -2480,7 +2492,23 @@ func TestSetBindingStatus(t *testing.T) {
 				},
 				// "work3" was deleted
 			},
-			workDeleted: true,
+			workDeleted: map[string]*fleetv1beta1.Work{
+				"work3": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "work3",
+						Generation: 123,
+					},
+					Status: fleetv1beta1.WorkStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:               fleetv1beta1.WorkConditionTypeApplied,
+								Status:             metav1.ConditionTrue,
+								ObservedGeneration: 123,
+							},
+						},
+					},
+				},
+			},
 			wantFailedResourcePlacements: []fleetv1beta1.FailedResourcePlacement{
 				{
 					ResourceIdentifier: fleetv1beta1.ResourceIdentifier{
