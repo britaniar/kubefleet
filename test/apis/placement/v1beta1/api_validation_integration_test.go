@@ -1867,7 +1867,7 @@ var _ = Describe("Test placement v1beta1 API validation", func() {
 		})
 
 		It("should allow transition from Initialize to Abandon", func() {
-			updateRun.Spec.State = placementv1beta1.StateAbandoned
+			updateRun.Spec.State = placementv1beta1.StateAbandon
 			Expect(hubClient.Update(ctx, updateRun)).Should(Succeed())
 		})
 	})
@@ -1898,7 +1898,7 @@ var _ = Describe("Test placement v1beta1 API validation", func() {
 		})
 
 		It("should allow transition from Execute to Abandon", func() {
-			updateRun.Spec.State = placementv1beta1.StateAbandoned
+			updateRun.Spec.State = placementv1beta1.StateAbandon
 			Expect(hubClient.Update(ctx, updateRun)).Should(Succeed())
 		})
 	})
@@ -1932,7 +1932,7 @@ var _ = Describe("Test placement v1beta1 API validation", func() {
 		})
 
 		It("should allow transition from Pause to Abandon", func() {
-			updateRun.Spec.State = placementv1beta1.StateAbandoned
+			updateRun.Spec.State = placementv1beta1.StateAbandon
 			Expect(hubClient.Update(ctx, updateRun)).Should(Succeed())
 		})
 	})
@@ -2012,7 +2012,7 @@ var _ = Describe("Test placement v1beta1 API validation", func() {
 					Name: updateRunName,
 				},
 				Spec: placementv1beta1.UpdateRunSpec{
-					State: placementv1beta1.StateAbandoned,
+					State: placementv1beta1.StateAbandon,
 				},
 			}
 			Expect(hubClient.Create(ctx, updateRun)).Should(Succeed())
@@ -2030,7 +2030,7 @@ var _ = Describe("Test placement v1beta1 API validation", func() {
 					Name: updateRunName,
 				},
 				Spec: placementv1beta1.UpdateRunSpec{
-					State: placementv1beta1.StateAbandoned,
+					State: placementv1beta1.StateAbandon,
 				},
 			}
 			Expect(hubClient.Create(ctx, updateRun)).Should(Succeed())
@@ -2048,7 +2048,7 @@ var _ = Describe("Test placement v1beta1 API validation", func() {
 					Name: updateRunName,
 				},
 				Spec: placementv1beta1.UpdateRunSpec{
-					State: placementv1beta1.StateAbandoned,
+					State: placementv1beta1.StateAbandon,
 				},
 			}
 			Expect(hubClient.Create(ctx, updateRun)).Should(Succeed())

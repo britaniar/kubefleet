@@ -232,6 +232,7 @@ func (r *Reconciler) executeUpdatingStage(
 				}
 			}
 			markClusterUpdatingStarted(clusterStatus, updateRun.GetGeneration())
+			klog.V(2).InfoS("Marked the cluster as updating", "cluster", clusterStatus.ClusterName, "stage", updatingStageStatus.StageName, "updateRun", updateRunRef)
 			if finishedClusterCount == 0 {
 				markStageUpdatingStarted(updatingStageStatus, updateRun.GetGeneration())
 			}
@@ -368,7 +369,7 @@ func (r *Reconciler) executeDeleteStage(
 		}
 		markClusterUpdatingSucceeded(clusterStatus, updateRun.GetGeneration())
 	}
-	klog.InfoS("The delete stage is progressing", "numberOfDeletingClusters", len(toBeDeletedBindings), "updateRun", updateRunRef)
+	klog.V(2).InfoS("The delete stage is progressing", "numberOfDeletingClusters", len(toBeDeletedBindings), "updateRun", updateRunRef)
 	if len(toBeDeletedBindings) == 0 {
 		markStageUpdatingSucceeded(updateRunStatus.DeletionStageStatus, updateRun.GetGeneration())
 	}
@@ -429,8 +430,8 @@ func (r *Reconciler) handleStageApprovalTask(
 ) (bool, error) {
 	updateRunRef := klog.KObj(updateRun)
 
-	stageTaskApproved := condition.IsConditionStatusTrue(meta.FindStatusCondition(stageTaskStatus.Conditions, string(placementv1beta1.StageTaskConditionApprovalRequestApproved)), updateRun.GetGeneration())
-	if stageTaskApproved {
+	approvedRequestCond := meta.FindStatusCondition(stageTaskStatus.Conditions, string(placementv1beta1.StageTaskConditionApprovalRequestApproved))
+	if approvedRequestCond != nil && approvedRequestCond.Status == metav1.ConditionTrue {
 		// The stageTask has been approved.
 		return true, nil
 	}
@@ -549,9 +550,11 @@ func calculateMaxConcurrencyValue(status *placementv1beta1.UpdateRunStatus, stag
 func aggregateUpdateRunStatus(updateRun placementv1beta1.UpdateRunObj, stageName string, stuckClusterNames []string) {
 	if len(stuckClusterNames) > 0 {
 		markUpdateRunStuck(updateRun, stageName, strings.Join(stuckClusterNames, ", "))
-	} else {
+	} else if updateRun.GetUpdateRunSpec().State != placementv1beta1.StateAbandon {
 		// If there is no stuck cluster but some progress has been made, mark the update run as progressing.
 		markUpdateRunProgressing(updateRun)
+	} else {
+		markUpdateRunAbandoning(updateRun)
 	}
 }
 
@@ -590,17 +593,17 @@ func checkClusterUpdateResult(
 	if condition.IsConditionStatusTrue(availCond, binding.GetGeneration()) ||
 		condition.IsConditionStatusTrue(diffReportCondition, binding.GetGeneration()) {
 		// The resource updated on the cluster is available or diff is successfully reported.
-		klog.InfoS("The cluster has been updated", "cluster", clusterStatus.ClusterName, "stage", updatingStage.StageName, "updateRun", klog.KObj(updateRun))
+		klog.V(2).InfoS("The cluster has been updated", "cluster", clusterStatus.ClusterName, "stage", updatingStage.StageName, "updateRun", klog.KObj(updateRun))
 		markClusterUpdatingSucceeded(clusterStatus, updateRun.GetGeneration())
 		return true, nil
 	}
 	if bindingutils.HasBindingFailed(binding) || condition.IsConditionStatusFalse(diffReportCondition, binding.GetGeneration()) {
 		// We have no way to know if the failed condition is recoverable or not so we just let it run
-		klog.InfoS("The cluster updating encountered an error", "cluster", clusterStatus.ClusterName, "stage", updatingStage.StageName, "updateRun", klog.KObj(updateRun))
+		klog.V(2).InfoS("The cluster updating encountered an error", "cluster", clusterStatus.ClusterName, "stage", updatingStage.StageName, "updateRun", klog.KObj(updateRun))
 		// TODO(wantjian): identify some non-recoverable error and mark the cluster updating as failed
 		return false, fmt.Errorf("the cluster updating encountered an error at stage `%s`, updateRun := `%s`", updatingStage.StageName, updateRun.GetName())
 	}
-	klog.InfoS("The application on the cluster is in the mid of being updated", "cluster", clusterStatus.ClusterName, "stage", updatingStage.StageName, "updateRun", klog.KObj(updateRun))
+	klog.V(2).InfoS("The application on the cluster is in the mid of being updated", "cluster", clusterStatus.ClusterName, "stage", updatingStage.StageName, "updateRun", klog.KObj(updateRun))
 	return false, nil
 }
 
@@ -655,7 +658,7 @@ func markUpdateRunProgressing(updateRun placementv1beta1.UpdateRunObj) {
 	})
 }
 
-// markUpdateRunProgressingIfNotWaitingOrStuck marks the update run as proegressing in memory if it's not marked as waiting or stuck already.
+// markUpdateRunProgressingIfNotWaitingOrStuck marks the update run as progressing in memory if it's not marked as waiting or stuck already.
 func markUpdateRunProgressingIfNotWaitingOrStuck(updateRun placementv1beta1.UpdateRunObj) {
 	updateRunStatus := updateRun.GetUpdateRunStatus()
 	progressingCond := meta.FindStatusCondition(updateRunStatus.Conditions, string(placementv1beta1.StagedUpdateRunConditionProgressing))
