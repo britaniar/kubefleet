@@ -152,22 +152,18 @@ func (c *ClusterStagedUpdateRun) SetUpdateRunStatus(status UpdateRunStatus) {
 type State string
 
 const (
-	// StateInitialized describes user intent to initialize but not execute the update run.
+	// StateInitialize describes user intent to initialize but not run the update run.
 	// This is the default state when an update run is created.
-	// Users can subsequently set the state to Execute or Abandon.
-	StateInitialized State = "Initialize"
+	// Users can subsequently set the state to Run.
+	StateInitialize State = "Initialize"
 
-	// StateExecuted describes user intent to execute (or resume execution if paused).
-	// Users can subsequently set the state to Pause or Abandon.
-	StateExecuted State = "Execute"
+	// StateRun describes user intent to start the update run (or resume if stopped).
+	// Users can subsequently set the state to Stop.
+	StateRun State = "Run"
 
-	// StateStopped describes user intent to pause the update run.
-	// Users can subsequently set the state to Execute or Abandon.
-	StateStopped State = "Pause"
-
-	// StateAbandoned describes user intent to abandon the update run.
-	// This is a terminal state; once set, it cannot be changed.
-	StateAbandoned State = "Abandon"
+	// StateStop describes user intent to stop the update run.
+	// Users can subsequently set the state to Run.
+	StateStop State = "Stop"
 )
 
 // UpdateRunSpec defines the desired rollout strategy and the snapshot indices of the resources to be updated.
