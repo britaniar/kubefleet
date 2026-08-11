@@ -1,0 +1,16 @@
+{
+  "slaBusinessDays": 5,
+  "maintainerMention": "@kubefleet-dev/kubefleet-maintainers",
+  "labels": {
+    "external": {
+      "name": "external-contribution",
+      "color": "0E8A16",
+      "description": "Issue or pull request opened by an external contributor"
+    },
+    "overdue": {
+      "name": "sla:overdue",
+      "color": "B60205",
+      "description": "External contribution awaiting an overdue maintainer response"
+    }
+  }
+}

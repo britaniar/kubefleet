@@ -77,3 +77,31 @@ jobs:
           echo "  - ${{ env.REGISTRY }}/${{ env.MEMBER_AGENT_IMAGE_NAME }}:${VERSION}"
           echo "  - ${{ env.REGISTRY }}/${{ env.REFRESH_TOKEN_IMAGE_NAME }}:${{ env.TAG }}"
           echo "  - ${{ env.REGISTRY }}/${{ env.REFRESH_TOKEN_IMAGE_NAME }}:${VERSION}"
+
+  publish-github-release:
+    needs:
+      - export-registry
+      - build-and-publish
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release automation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.export-registry.outputs.tag }}
+          persist-credentials: false
+
+      - name: Publish release notes and thank external contributors
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          RELEASE_TAG: ${{ needs.export-registry.outputs.tag }}
+        with:
+          script: |
+            const release = require("./.github/scripts/release-contributors.js");
+            const contributors = await release.publishRelease({
+              github,
+              context,
+              tag: process.env.RELEASE_TAG,
+            });
+            core.info(`Recognized ${contributors.length} external contributor(s).`);
