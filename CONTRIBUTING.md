@@ -33,3 +33,9 @@ The KubeFleet project has adopted the CNCF Code of Conduct. Refer to our [Commun
 ## Issue and pull request management
 
 Anyone can comment on issues and submit reviews for pull requests. In order to be assigned an issue or pull request, you can leave a `/assign <your Github ID>` comment on the issue or pull request.
+
+### External contribution response time
+
+We aim to provide an initial maintainer response to external issues and pull requests within five business days. Saturdays and Sundays are excluded from this response window.
+
+Automation labels external submissions with `external-contribution`. If the response window is exceeded, it labels the submission with `sla:overdue` and alerts the maintainer team. The label is removed after a maintainer comments on the issue or comments on or reviews the pull request.
