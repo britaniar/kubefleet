@@ -77,3 +77,91 @@ jobs:
           echo "  - ${{ env.REGISTRY }}/${{ env.MEMBER_AGENT_IMAGE_NAME }}:${VERSION}"
           echo "  - ${{ env.REGISTRY }}/${{ env.REFRESH_TOKEN_IMAGE_NAME }}:${{ env.TAG }}"
           echo "  - ${{ env.REGISTRY }}/${{ env.REFRESH_TOKEN_IMAGE_NAME }}:${VERSION}"
+
+  # Publishes the GitHub Release. Notes are produced by GitHub's built-in
+  # generator (categorized by .github/release.yml, including its "New
+  # Contributors" section) and then extended with a full list of everyone whose
+  # commits landed in the release.
+  create-release:
+    needs: [export-registry, build-and-publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.export-registry.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Publish release with contributor credits
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.export-registry.outputs.tag }}
+          VERSION: ${{ needs.export-registry.outputs.version }}
+          REGISTRY: ${{ needs.export-registry.outputs.registry }}
+        run: |
+          set -euo pipefail
+
+          # Most recent release tag that precedes this one, if any.
+          PREVIOUS_TAG="$(git tag --list 'v*.*.*' --sort=-version:refname --merged "${TAG}" \
+            | grep -v "^${TAG}$" \
+            | head -n 1 || true)"
+          echo "Previous tag: ${PREVIOUS_TAG:-<none>}"
+
+          NOTES_REQUEST="$(jq -n --arg tag "${TAG}" --arg prev "${PREVIOUS_TAG}" \
+            'if $prev == "" then {tag_name: $tag} else {tag_name: $tag, previous_tag_name: $prev} end')"
+          GENERATED_NOTES="$(echo "${NOTES_REQUEST}" \
+            | gh api "repos/${REPO}/releases/generate-notes" --method POST --input - --jq '.body')"
+
+          # Everyone with a commit in this release, including contributors whose
+          # work was merged without an associated pull request.
+          if [ -n "${PREVIOUS_TAG}" ]; then
+            RANGE="${PREVIOUS_TAG}...${TAG}"
+          else
+            RANGE=""
+          fi
+
+          CONTRIBUTORS=""
+          if [ -n "${RANGE}" ]; then
+            CONTRIBUTORS="$(gh api "repos/${REPO}/compare/${RANGE}" --paginate \
+              --jq '.commits[] | select(.author != null) | .author.login' \
+              | grep -v '\[bot\]$' \
+              | sort -u \
+              | sed 's/^/* @/' || true)"
+          fi
+
+          {
+            echo "${GENERATED_NOTES}"
+            echo
+            if [ -n "${CONTRIBUTORS}" ]; then
+              echo "## 🙌 Thanks to everyone who contributed to ${TAG}"
+              echo
+              echo "${CONTRIBUTORS}"
+              echo
+            fi
+            echo "## 📦 Images"
+            echo
+            echo '```'
+            echo "${REGISTRY}/hub-agent:${TAG}"
+            echo "${REGISTRY}/member-agent:${TAG}"
+            echo "${REGISTRY}/refresh-token:${TAG}"
+            echo '```'
+          } > release-notes.md
+
+          cat release-notes.md >> "${GITHUB_STEP_SUMMARY}"
+
+          if gh release view "${TAG}" --repo "${REPO}" >/dev/null 2>&1; then
+            gh release edit "${TAG}" --repo "${REPO}" --notes-file release-notes.md
+          else
+            PRERELEASE_FLAG=""
+            case "${VERSION}" in
+              *-*) PRERELEASE_FLAG="--prerelease" ;;
+            esac
+            # shellcheck disable=SC2086
+            gh release create "${TAG}" --repo "${REPO}" \
+              --title "${TAG}" \
+              --notes-file release-notes.md \
+              ${PRERELEASE_FLAG}
+          fi
