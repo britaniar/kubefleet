@@ -1,0 +1,52 @@
+# Configuration for GitHub's automatically generated release notes.
+# Used by the `create-release` job in .github/workflows/release.yml, which calls
+# `gh release create --generate-notes`. GitHub appends a "New Contributors"
+# section listing everyone whose first merged pull request landed in the release.
+changelog:
+  exclude:
+    authors:
+      - dependabot
+      - dependabot[bot]
+      - github-actions
+      - github-actions[bot]
+  categories:
+    - title: 🌟 Community Contributions
+      labels:
+        - community
+    - title: 🚨 Breaking Changes
+      labels:
+        - breaking-change
+        - interface
+    - title: ✨ Features
+      labels:
+        - feat
+        - feature
+        - enhancement
+    - title: 🐛 Bug Fixes
+      labels:
+        - fix
+        - bug
+    - title: ⚡ Performance
+      labels:
+        - perf
+    - title: 📖 Documentation
+      labels:
+        - docs
+        - documentation
+    - title: 🧪 Testing
+      labels:
+        - test
+    - title: 🏗️ Build, CI, and Maintenance
+      labels:
+        - ci
+        - chore
+        - build
+        - refactor
+        - style
+        - util
+    - title: 📦 Dependencies
+      labels:
+        - dependencies
+    - title: Other Changes
+      labels:
+        - "*"
