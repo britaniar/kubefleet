@@ -1,0 +1,114 @@
+name: External Contributions
+
+# Triages incoming community contributions: labels pull requests and issues that
+# come from outside the organization so maintainers can spot them immediately,
+# and welcomes first-time contributors.
+#
+# `pull_request_target` is required so that pull requests opened from forks still
+# run with a token that can write labels and comments. No contributor code is
+# checked out or executed by this workflow.
+on:
+  pull_request_target:
+    types: [opened, reopened]
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: external-contributions-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    # Association is MEMBER/OWNER/COLLABORATOR for maintainers; everything else
+    # (CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, FIRST_TIMER, NONE) is a community author.
+    if: >-
+      github.event.sender.type != 'Bot' &&
+      !contains(fromJSON('["MEMBER", "OWNER", "COLLABORATOR"]'),
+        github.event.pull_request.author_association || github.event.issue.author_association)
+    steps:
+      - name: Triage community contribution
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          IS_PULL_REQUEST: ${{ github.event_name == 'pull_request_target' }}
+        with:
+          script: |
+            const isPullRequest = process.env.IS_PULL_REQUEST === 'true';
+            const payload = isPullRequest ? context.payload.pull_request : context.payload.issue;
+            const number = payload.number;
+            const author = payload.user.login;
+            const association = payload.author_association;
+            const isFirstTimer = ['FIRST_TIME_CONTRIBUTOR', 'FIRST_TIMER', 'NONE'].includes(association);
+
+            const labels = ['community'];
+            if (isFirstTimer) {
+              labels.push('first-time-contributor');
+            }
+            if (isPullRequest) {
+              labels.push('needs-review');
+            } else {
+              labels.push('needs-triage');
+            }
+
+            // Labels are created on demand so the workflow does not fail on a fresh repository.
+            const labelColors = {
+              'community': '0e8a16',
+              'first-time-contributor': '7057ff',
+              'needs-review': 'fbca04',
+              'needs-triage': 'fbca04',
+            };
+            for (const label of labels) {
+              try {
+                await github.rest.issues.getLabel({ ...context.repo, name: label });
+              } catch (error) {
+                if (error.status !== 404) {
+                  throw error;
+                }
+                await github.rest.issues.createLabel({
+                  ...context.repo,
+                  name: label,
+                  color: labelColors[label],
+                  description: 'Managed by the External Contributions workflow.',
+                });
+              }
+            }
+
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: number,
+              labels,
+            });
+
+            if (!isFirstTimer) {
+              core.info(`@${author} is a returning contributor (${association}); skipping welcome comment.`);
+              return;
+            }
+
+            const body = isPullRequest
+              ? [
+                  `👋 Thanks for your first pull request to KubeFleet, @${author}!`,
+                  '',
+                  'A maintainer will review this shortly. In the meantime, please make sure that:',
+                  '',
+                  '- the PR title uses one of the required prefixes (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`, `perf:`, `refactor:`, `revert:`, `style:`, `interface:`, `util:`, or `[WIP] `);',
+                  '- `make reviewable` passes locally;',
+                  '- new behavior is covered by unit, integration, or E2E tests.',
+                  '',
+                  'See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the full guide.',
+                ].join('\n')
+              : [
+                  `👋 Thanks for opening your first issue in KubeFleet, @${author}!`,
+                  '',
+                  'A maintainer will triage this shortly. Including your KubeFleet version, the placement spec involved, and any relevant hub or member agent logs helps us investigate faster.',
+                ].join('\n');
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: number,
+              body,
+            });

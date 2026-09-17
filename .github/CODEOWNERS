@@ -1,0 +1,12 @@
+# Code owners for KubeFleet.
+#
+# Every pull request automatically requests a review from the maintainers listed
+# here, which is what drives review notifications (web, email, and the Slack
+# integration) and what GitHub's scheduled reminders use to nudge on pending
+# review requests. Keep this list in sync with MAINTAINERS.md.
+#
+# Scheduled reminders are an organization/repository setting rather than a file;
+# configure them at Settings -> Code review limits / Scheduled reminders so that
+# pending review requests are surfaced on a cadence.
+
+* @ryanzhang-oss @zhiying-lin @michaelawyu @weng271190436 @ytimocin @serbrech @sjwaight
